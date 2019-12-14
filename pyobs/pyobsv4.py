@@ -139,7 +139,7 @@ def get_graph():
     return obsgraph
 
 
-class platform(object):
+class Platform(object):
     """
     Creates a Platform object that represents a SOSA Platform
 """
