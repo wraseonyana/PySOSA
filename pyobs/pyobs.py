@@ -10,11 +10,10 @@ Todo:
 """
 
 from rdflib import Graph, URIRef, BNode, Literal, Namespace, RDF, RDFS
-from pyld import jsonld
 from datetime import datetime
-from pytz import timezone
-import json
-import uuid
+#from pytz import timezone
+#import json
+#import uuid
 
 # Contexts for SOSA, SSN-EXT, SOSA
 #  SOSA https://github.com/opengeospatial/ELFIE/blob/master/docs/json-ld/sosa.jsonld
@@ -27,7 +26,7 @@ import uuid
 
 # For images that are observations IIF 
 # https://github.com/zimeon/iiif-ld-demo
-
+from rdflib.term import Identifier
 
 context = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
@@ -142,28 +141,6 @@ def get_graph():
     return obsgraph
 
 
-class platform(object):
-    """
-    Creates a Platform object that represents a SOSA Platform
-"""
-    # Maybe remove list if makes object too big/not needed, or might want a func that returns this list
-    sensors = []
-
-    def __init__(self, comment, label):
-        self.platform_id = BNode()
-        self.label = Literal(label)
-        self.comment = Literal(comment)
-        obsgraph.add((self.platform_id, RDF.type, sosa.Platform))
-        obsgraph.add((self.platform_id, RDFS.comment, self.comment))
-        obsgraph.add((self.platform_id, RDFS.label, self.label))
-
-    def add_sensor(self, Sensor):
-        a_uri = Sensor.get_uri()
-        self.sensors.append(a_uri)
-        obsgraph.add((self.platform_id, sosa.hosts, a_uri))
-        Sensor.add_platform_id(self.platform_id)
-
-
 class ObservationCollection(object):
     """ Create SSN-EXT Observation Collection """
 
@@ -197,32 +174,31 @@ class ObservationCollection(object):
 # str(uuid.uuid4())
 
 class Observation(object):
-    def __init__(self, comment, label):
+
+
+    def __init__(self, label, comment):
         self.comment = Literal(comment)
+        self.label = Literal(label)
         self.observation_id = BNode()
-        # Fix Tomorrow
-        # obsgraph.add((self.observation_id, sosa.madeBySensor, sensor_id))
-        # obsgraph.add((self.platform_id, RDFS.comment, self.comment))
-        # obsgraph.add((self.platform_id, RDFS.label, self.label))
+        self.dateTime = Literal(datetime)
+        self.simpleResult = Literal
 
 
-class Sensor(object):
-    def __init__(self, sensor_description, observable_property_uri):
-        self.sensorid = BNode()
-        self.sensor_description = Literal(sensor_description)
-        obsgraph.add((self.sensorid, RDF.type, sosa.Sensor))
-        obsgraph.add((self.sensorid, sosa.Observes, observable_property_uri))
-        obsgraph.add((self.sensorid, RDFS.comment, self.sensor_description))
-
-    def add_platform_id(self, platform_id):
-        obsgraph.add((self.sensorid, sosa.isHostedBy, platform_id))
+        obsgraph.add((self.observation_id, RDF.type , sosa.Observation))
+        obsgraph.add((self.observation_id, RDFS.comment, self.comment))
+        obsgraph.add((self.observation_id, RDFS.label, self.label))
+        obsgraph.add((self.observation_id, sosa.dateTime, self.dateTime))
+        # To be fixed
+       # obsgraph.add((self.observation_id, sosa.hasResult, self.simpleResult))
 
     def get_uri(self):
-        return self.sensorid
+        return self.observation_id
 
-    def add_obs_property(self, observable_property):
-        obsgraph.add(self.sensorid, sosa.observes, observable_property)
+    def set_dateTime(self, dateTime):
+        self.dateTime = dateTime
 
+    def set_simpleResult(self,simpleResult):
+        self.simpleResult = simpleResult
 
 # Class for managing observableproperties
 # Preferably linked to envo, sweet and qudt
@@ -232,15 +208,17 @@ class ObservableProperty(object):
 
     """
 
-    def __init__(self, property_uri):
-        if property_uri:
-            self.observable_property_uri = property_uri
-        else:
-            self.observable_property_uri = BNode()
-        obsgraph.add((self.observable_property_uri, rdf.type, sosa.Observable_property))
+    def __init__(self,label,comment):
+        self.property_id = BNode()
+        self.label = Literal(label)
+        self.comment=Literal(comment)
+        obsgraph.add((self.property_id, RDF.type, sosa.ObservableProperty))
+        obsgraph.add((self.property_id, RDFS.comment, self.comment))
+        obsgraph.add((self.property_id, RDFS.label, self.label))
+
 
     def get_uri(self):
-        return self.observable_property_uri
+        return self.property_id
 
 
 class FeatureOfInterest(object):
@@ -250,7 +228,347 @@ class FeatureOfInterest(object):
         self.uri = "_B0"
         pass
 
-
 class UltimateFeatureOfInterest(FeatureOfInterest):
     def __init__(self):
         super(UltimateFeatureOfInterest, self).__init__()
+
+class Platform(object):
+    """
+    Creates a Platform object that represents a SOSA Platform
+"""
+    # Maybe remove list if makes object too big/not needed, or might want a func that returns this list
+    sensors = []
+    actuators = []
+    samplers = []
+
+    #constructor
+    def __init__(self, comment, label):
+        self.platform_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        obsgraph.add((self.platform_id, RDF.type, sosa.Platform))
+        obsgraph.add((self.platform_id, RDFS.comment, self.comment))
+        obsgraph.add((self.platform_id, RDFS.label, self.label))
+
+    #Get platform URI
+    def get_uri(self):
+        return self.platform_id
+
+    #Add sensor to platform
+    def add_sensor(self, Sensor):
+            sen_uri = Sensor.get_uri()
+            self.sensors.append(sen_uri)
+            obsgraph.add((self.platform_id, sosa.hosts, sen_uri))
+            print("sensor list after adding")
+            print(self.sensors)
+
+    #Add actuator to platform
+    def add_actuator(self, Actuator):
+        a_uri = Actuator.get_uri()
+        self.actuators.append(a_uri)
+        obsgraph.add((self.platform_id, sosa.hosts, a_uri))
+
+
+    #Add sampler to platform
+    def add_sampler(self, Sampler):
+            s_uri = Sampler.get_uri()
+            self.samplers.append(s_uri)
+            obsgraph.add((self.platform_id, sosa.hosts, s_uri))
+
+
+    #Remove sensor from platform
+    def remove_sensor(self, Sensor):
+        sen_uri = Sensor.get_uri()
+        self.sensors.remove(Sensor.label)
+        obsgraph.remove((self.platform_id, sosa.hosts, sen_uri))
+
+        print("sensor list after removing")
+        print(self.sensors)
+
+    #Remove actuator from  platform
+    def remove_actuator(self, Actuator):
+        a_uri = Actuator.get_uri()
+        self.actuators.remove(a_uri)
+        obsgraph.remove((self.platform_id, sosa.hosts, a_uri))
+
+    #Remove sampler from platform
+    def remove_sampler(self, Sampler):
+        s_uri = Sampler.get_uri()
+        self.samplers.remove(s_uri)
+        obsgraph.remove((self.platform_id, sosa.hosts, s_uri))
+
+
+class Sensor(object):
+
+    """
+    Device, agent (including humans), or software (simulation) involved in, or implementing, a Procedure.
+    Sensors respond to a Stimulus, e.g., a change in the environment, or Input data composed
+    from the Results of prior Observations, and generate a Result. Sensors can be hosted by Platforms.
+    """
+
+    observations = []
+
+    #constructor
+    def __init__(self, label,comment):
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        self.sensor_id = BNode()
+        self.obs_property = Literal
+        obsgraph.add((self.sensor_id, RDF.type, sosa.Sensor))
+        obsgraph.add((self.sensor_id, RDFS.comment, self.comment))
+        obsgraph.add((self.sensor_id, RDFS.label, self.label))
+
+    #set sensor id
+    def set_sensor_id(self, sensor_id):
+        self.sensor_id = sensor_id
+
+    #get sensor id
+    def get_uri(self):
+        return self.sensor_id
+
+    #add observable property
+
+    def add_obs_property(self, ObservableProperty):
+        a_uri = ObservableProperty.get_uri()
+        obsgraph.add((self.sensor_id, sosa.observes, a_uri))
+
+    #add procedure
+    def add_procedure(self,Procedure):
+        p_uri = Procedure.get_uri()
+        obsgraph.add((self.sensor_id, sosa.implements, p_uri))
+
+    #define platfrom that hosts sensor
+    def add_platform(self,Platform):
+        pl_uri = Platform.get_uri()
+        obsgraph.add((self.sensor_id, sosa.isHostedBy, pl_uri))
+
+    #define observation
+    def add_observation(self,Observation):
+        o_uri=Observation.get_uri()
+        obsgraph.add((self.sensor_id, sosa.madeObservation, o_uri))
+        self.observations.append(Observation)
+
+
+
+
+class Procedure(object):
+    """
+    Creates a Procedure object
+    """
+
+    def __init__(self, comment, label):
+        self.procedure_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        self.input = BNode()
+        self.output = BNode()
+
+        obsgraph.add((self.procedure_id, RDF.type, sosa.Procedure))
+        obsgraph.add((self.procedure_id, RDFS.comment, self.comment))
+        obsgraph.add((self.procedure_id, RDFS.label, self.label))
+        obsgraph.add((self.procedure_id, sosa.hasInput, self.input))
+        obsgraph.add((self.procedure_id, sosa.hasOutput, self.output))
+
+    #set procedure id
+    def set_procedure_id(self, procedure_id):
+        self.procedure_id = procedure_id
+
+    #get procedure id
+    def get_uri(self):
+        return self.procedure_id
+
+    # set procedure input
+    def set_procedure_input(self, input):
+        self.input = input
+
+    # get procedure input
+    def get_input(self):
+        return self.input
+
+        # set procedure output
+    def set_procedure_output(self, output):
+        self.output = output
+
+        # get procedure output
+    def get_output(self):
+        return self.output
+
+
+
+
+
+
+class Actuation(object):
+    """
+    An Actuation carries out an (Actuation) Procedure to change the state of the world using an Actuator.
+    """
+
+    def __init__(self,label,comment):
+        self.actuation_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        self.dateTime = Literal(datetime)
+        self.simpleResult = Literal
+
+        obsgraph.add((self.actuation_id, RDF.type, sosa.Actuation))
+        obsgraph.add((self.actuation_id, RDFS.comment, self.comment))
+        obsgraph.add((self.actuation_id, RDFS.label, self.label))
+        obsgraph.add((self.actuation_id, sosa.datetime, self.dateTime))
+        #obsgraph.add((self.actuation_id, sosa.hasSimpleResult, self.simpleResult))
+
+    #get actuation id
+    def get_uri(self):
+        return self.actuation_id
+
+    #set result time
+    def set_date_time(self, dateTime):
+        self.dateTime = dateTime
+
+    # get result time
+    def get_date_time(self):
+        return self.dateTime
+
+    #set simple result
+    def set_simple_Result(self, simpleResult):
+        self.simpleResult = simpleResult
+
+    # get simple result
+    def get_simple_Result(self):
+        return self.simpleResult
+
+    #add feature of interest
+    def add_featureOfInterest(self, FeatureOfInterest):
+        f_uri = FeatureOfInterest.get_uri()
+        obsgraph.add((self.actuation_id, sosa.hasFeatureOfInterest, f_uri))
+
+
+class ActuatableProperty(object):
+    """
+    An actuatable quality (property, characteristic) of a FeatureOfInterest.
+    """
+
+    def __init__(self,label,comment):
+        self.actuatable_property_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+
+        obsgraph.add((self.actuatable_property_id, RDF.type, sosa.ActuatableProperty))
+        obsgraph.add((self.actuatable_property_id, RDFS.comment, self.comment))
+        obsgraph.add((self.actuatable_property_id, RDFS.label, self.label))
+
+    def get_uri(self):
+            return self.actuatable_property_id
+
+class FeatureOfInterest(object):
+    """
+    The thing whose property is being estimated or calculated in the course of an Observation
+    to arrive at a Result, or whose property is being manipulated by an Actuator,
+    or which is being sampled or transformed in an act of Sampling.
+    """
+
+    def __init__(self,label,comment):
+        self.feature_of_interest_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+
+    def get_uri(self):
+        return self.feature_of_interest_id
+
+        obsgraph.add((self.feature_of_interest_id, RDF.type, sosa.FeatureOfInterest))
+        obsgraph.add((self.feature_of_interest_id, RDFS.comment, self.comment))
+        obsgraph.add((self.feature_of_interest_id, RDFS.label, self.label))
+
+class Actuator(object):
+    """
+     A device that is used by, or implements, an (Actuation) Procedure that changes the state of the world.
+
+    """
+    actuations = []
+
+    def __init__(self,label,comment):
+        self.actuator_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        self.actuatableProperty = Literal
+
+        obsgraph.add((self.actuator_id, RDF.type, sosa.Actuator))
+        obsgraph.add((self.actuator_id, RDFS.comment, self.comment))
+        obsgraph.add((self.actuator_id, RDFS.label, self.label))
+
+    def get_uri(self):
+        return self.actuator_id
+
+    def set_actuator_id(self, actuator_id):
+        self.actuator_id = actuator_id
+    #add procedure
+    def add_procedure(self, Procedure):
+        p_uri = Procedure.get_uri()
+        obsgraph.add((self.actuator_id, sosa.implements, p_uri))
+    #add actuableProperty
+    def add_actuatableProperty(self, ActuatableProperty):
+        a_uri = ActuatableProperty.get_uri()
+        obsgraph.add((self.actuator_id, sosa.actsOnProperty, a_uri))
+    #add actuation
+    def add_actuation(self, Actuation):
+        a_uri = Actuation.get_uri()
+        obsgraph.add((self.actuator_id, sosa.madeActuation, a_uri))
+        self.actuations.append(a_uri)
+
+class Sampler(object):
+    """
+     A device that is used by, or implements, a (Sampling) Procedure to create or transform one or more samples.
+    """
+    samplings = []
+
+    def __init__(self,label,comment):
+        self.sampler_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+
+
+        obsgraph.add((self.sampler_id, RDF.type, sosa.Sampler))
+        obsgraph.add((self.sampler_id, RDFS.comment, self.comment))
+        obsgraph.add((self.sampler_id, RDFS.label, self.label))
+
+    def get_uri(self):
+        return self.sampler_id
+
+    def set_sampler_id(self, sampler_id):
+        self.sampler_id = sampler_id
+    #add procedure
+    def add_procedure(self, Procedure):
+        p_uri = Procedure.get_uri()
+        obsgraph.add((self.sampler_id, sosa.implements, p_uri))
+    #add sampling
+    def add_sampling(self, Sampling):
+        a_uri = Sampling.get_uri()
+        obsgraph.add((self.sampler_id, sosa.madeSampling, a_uri))
+        self.samplings.append(a_uri)
+
+class Sampling(object):
+    """
+     An act of Sampling carries out a (Sampling) Procedure to create or transform one or more Samples.
+    """
+
+    def __init__(self,label,comment):
+        self.sampling_id = BNode()
+        self.label = Literal(label)
+        self.comment = Literal(comment)
+        self.dateTime = Literal(datetime)
+        self.simpleResult = Literal
+
+        obsgraph.add((self.sampling_id, RDF.type, sosa.Sampling))
+        obsgraph.add((self.sampling_id, RDFS.comment, self.comment))
+        obsgraph.add((self.sampling_id, RDFS.label, self.label))
+        obsgraph.add((self.sampling_id, sosa.datetime, self.dateTime))
+        #fix
+        #obsgraph.add((self.sampling_id, sosa.hasresult, self.simpleResult))
+
+    def get_uri(self):
+        return self.sampling_id
+
+    #add feature of interest
+    def add_featureOfInterest(self, FeatureOfInterest):
+        f_uri = FeatureOfInterest.get_uri()
+        obsgraph.add((self.sampling_id, sosa.hasFeatureOfInterest, f_uri))
+
